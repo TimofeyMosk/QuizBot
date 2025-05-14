@@ -5,10 +5,11 @@ import (
 	"PGKQuizBot/internal/infrastructure/repo"
 	"context"
 	"fmt"
+	"time"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/time/rate"
-	"time"
 )
 
 func NewPool(ctx context.Context, connString string) (*pgxpool.Pool, error) {
@@ -27,7 +28,7 @@ func NewPool(ctx context.Context, connString string) (*pgxpool.Pool, error) {
 
 func main() {
 
-	botToken := "7160142882:AAEetML9kg7Ep3jwIBHoOE4IQt8-9kevsK8"
+	botToken := "YOUR_TOKEN"
 	tgAPI, err := tgbotapi.NewBotAPI(botToken)
 	if err != nil {
 		return
@@ -52,32 +53,15 @@ func main() {
 	u.Timeout = 60
 	updates := tgAPI.GetUpdatesChan(u)
 
-	// Ограничитель по скорости для предотвращения спама
 	limiter := rate.NewLimiter(rate.Every(time.Second/30), 30)
 
-	// Основной цикл обработки обновлений
 	for update := range updates {
-		limiter.Wait(context.Background())
+		limiter.Wait(ctx)
 		if update.Message != nil {
 			go quizBot.HandleMessage(update)
 		} else if update.CallbackQuery != nil {
 			go quizBot.HandleCallback(update.CallbackQuery)
 		}
 	}
-	//userRepo.AddUser(ctx, 123)
-	//err = userRepo.UpdateName(ctx, 123, "Nbvjatq Vjcrfkd")
-	//if err != nil {
-	//	fmt.Printf("update group: %v", err)
-	//}
-
-	//qRepo := repo.NewQuestionsRepo(pool)
-	//question := "Высшей военной наградой Советского союза, которой были удостоены менее 20 человек, являлся:"
-	//answers := []string{"Орден Ленина",
-	//	"Орден «Победа»",
-	//	"Орден красного знамени"}
-	//trueAns := 2
-	//err = qRepo.AddQuestion(ctx, question, answers, trueAns)
-	//if err != nil {
-	//	fmt.Printf("add question: %v", err)
-	//}
 }
+

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"PGKQuizBot/internal/domain"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -70,7 +71,7 @@ func (b *QuizBot) HandleMessage(update tgbotapi.Update) {
 	if text == "/start" {
 		if err := b.userRepo.AddUser(ctx, tgID); err != nil {
 			log.Printf("Ошибка регистрации пользователя tgID=%d: %v", tgID, err)
-			b.sendMessage(chatID, "Ошибка. Попробуйте позже.")
+			b.sendMessage(chatID, "Викторину можно пройти только 1 раз😢")
 			return
 		}
 		if err := b.userRepo.SetState(ctx, tgID, StateAwaitingName); err != nil {
@@ -78,7 +79,9 @@ func (b *QuizBot) HandleMessage(update tgbotapi.Update) {
 			b.sendMessage(chatID, "Ошибка. Попробуйте позже.")
 			return
 		}
-		b.sendMessage(chatID, "Добро пожаловать в викторину!\nКак вас зовут?")
+		b.sendMessage(chatID, "Добро пожаловать в PGKQuizBot!\n"+
+			"Приглашаем погрузиться в увлекательный мир военной истории нашей страны! Проверь свои знания о выдающихся военных деятелях, великих сражениях,"+
+			" стратегиях и оружии, сыгравших ключевую роль в защите Отечества во все времена!Перед началом мне нужно узнать как тебя зовут, напиши своё имя и фамилию")
 		return
 	}
 
@@ -101,7 +104,7 @@ func (b *QuizBot) HandleMessage(update tgbotapi.Update) {
 			b.sendMessage(chatID, "Ошибка. Попробуйте позже.")
 			return
 		}
-		b.sendMessage(chatID, "Введите название вашей группы:")
+		b.sendMessage(chatID, "Отлично, теперь введи номер группы в которой учишься:")
 	case StateAwaitingGroup:
 		if err := b.userRepo.SetGroup(ctx, tgID, text); err != nil {
 			log.Printf("Ошибка сохранения группы для пользователя tgID=%d: %v", tgID, err)
@@ -115,6 +118,7 @@ func (b *QuizBot) HandleMessage(update tgbotapi.Update) {
 		}
 		b.sendQuestion(ctx, tgID, chatID)
 	default:
+		log.Printf("Пользователь %d отправил %s", tgID, text)
 		b.sendMessage(chatID, "Неизвестная команда. Для начала введите /start")
 	}
 }
@@ -168,7 +172,6 @@ func (b *QuizBot) HandleCallback(callback *tgbotapi.CallbackQuery) {
 		}
 	} else {
 		response = "Неверно!"
-		log.Printf("Неверный ответ пользователя tgID=%d: выбран %d, верный %d", tgID, answerIndex+1, question.TrueAns)
 	}
 
 	b.answerCallback(callback.ID, response)
@@ -193,7 +196,15 @@ func (b *QuizBot) HandleCallback(callback *tgbotapi.CallbackQuery) {
 				log.Printf("Ошибка удаления предыдущего сообщения для tgID=%d: %v", tgID, err)
 			}
 		}
-		b.sendMessage(chatID, "Викторина окончена!")
+		userScore, err := b.userRepo.GetUserScore(ctx, tgID)
+		if err != nil {
+			log.Printf("Ошибка получения количества очков tgID=%d: %v", tgID, err)
+		}
+		userName, err := b.userRepo.GetName(ctx, tgID)
+		if err != nil {
+			log.Printf("Ошибка получения имени tgID=%d: %v", tgID, err)
+		}
+		b.sendMessage(chatID, fmt.Sprintf("%s, поздравляю! Ты стал участником викторины «На стыке истории: военные традиции России» и набрал %d баллов из 15!", userName, userScore))
 		b.userRepo.SetState(ctx, tgID, StateFinished)
 		return
 	}
